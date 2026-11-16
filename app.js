@@ -58,10 +58,16 @@
   function toast(msg, action) {
     const el = $('#toast');
     el.innerHTML = `<span>${esc(msg)}</span>` + (action ? `<button type="button">${esc(action.label)}</button>` : '');
-    if (action) $('button', el).onclick = () => { el.classList.remove('show'); action.run(); };
+    if (action) $('button', el).onclick = () => { el.classList.remove('show'); try { el.hidePopover(); } catch (e) {} action.run(); };
+    // Popover liegt in der Top-Layer-Ebene und damit auch über offenen Dialogen.
+    try { if (!el.matches(':popover-open')) el.showPopover(); } catch (e) { /* ältere Browser */ }
+    void el.offsetWidth;
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), action ? 5000 : 2600);
+    toastTimer = setTimeout(() => {
+      el.classList.remove('show');
+      setTimeout(() => { try { if (!el.classList.contains('show')) el.hidePopover(); } catch (e) {} }, 260);
+    }, action ? 5000 : 2600);
   }
 
   // ---------- Daten ----------
@@ -293,18 +299,32 @@
       </div>`;
   }
 
+  let confirming = false;
+  /** Zeigt auf dem Button ein Häkchen, schließt dann das Blatt und trägt das Gießen ein. */
+  async function confirmWatered(btn, commit) {
+    if (confirming) return;
+    confirming = true;
+    btn.classList.add('confirmed');
+    btn.innerHTML = '<svg><use href="#i-check"/></svg>Gegossen';
+    if (navigator.vibrate) navigator.vibrate(15);
+    await new Promise((r) => setTimeout(r, 750));
+    $('#detail-sheet').close();
+    confirming = false;
+    await commit();
+  }
+
   $('#detail-sheet').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-detail]');
     if (!btn) return;
     const p = byId(state.detailId);
     if (!p) return;
     switch (btn.dataset.detail) {
-      case 'water': await water(p); break;
+      case 'water': await confirmWatered(btn, () => water(p)); break;
       case 'snooze': await snooze(p); break;
       case 'other': $('#other-date').classList.toggle('open'); break;
       case 'water-other': {
         const v = $('#other-date-input').value;
-        if (v && v <= today()) await water(p, v);
+        if (v && v <= today()) await confirmWatered(btn, () => water(p, v));
         break;
       }
       case 'adopt': await savePlant({ ...p, interval: Number(btn.dataset.days) }); toast('Intervall angepasst'); break;

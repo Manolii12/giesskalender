@@ -490,8 +490,15 @@ strong { font-weight: 500; }
 .detail-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 24px; }
 
 /* ---------- Toast ---------- */
+.btn.confirmed { background: var(--moss); border-color: var(--moss); color: var(--bg); animation: pop .35s cubic-bezier(.2, 1.4, .4, 1); pointer-events: none; }
+.btn.confirmed svg { stroke-dasharray: 30; animation: draw .4s ease-out; }
+@keyframes pop { 0% { transform: scale(.96); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
+@keyframes draw { from { stroke-dashoffset: 30; } to { stroke-dashoffset: 0; } }
+
 .toast {
   position: fixed;
+  inset: auto auto calc(var(--safe-bottom) + 90px) 50%;
+  margin: 0; border: 0; overflow: visible;
   left: 50%; bottom: calc(var(--safe-bottom) + 90px);
   transform: translate(-50%, 20px);
   display: flex; align-items: center; gap: 14px;

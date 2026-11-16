@@ -1,4 +1,4 @@
-/* Gießkalender – Oberfläche */
+/* Gießela – Oberfläche */
 (function () {
   'use strict';
   const { db, status, toDayString, parseDay, addDays, diffDays, getSettings, saveSettings, effectiveInterval, isWinter } = Core;
@@ -475,7 +475,7 @@
     const s = state.settings;
     const [hh, mm] = (s.reminderTime || '08:00').split(':');
     const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Giesskalender//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Gießkalender'];
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Giesskalender//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Gießela'];
     for (const p of plants) {
       const st = status(p, s);
       const start = st.daysLeft < 0 ? new Date() : st.due;
@@ -502,7 +502,7 @@
     }
     lines.push('END:VCALENDAR');
     const blob = new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
-    const name = plants.length === 1 ? `${plants[0].name.replace(/[^\p{L}\p{N}]+/gu, '-')}-giessen.ics` : 'giesskalender.ics';
+    const name = plants.length === 1 ? `${plants[0].name.replace(/[^\p{L}\p{N}]+/gu, '-')}-giessen.ics` : 'giessela.ics';
     saveBlob(blob, name);
   }
 
@@ -522,7 +522,7 @@
   async function exportBackup() {
     const plants = await Promise.all(state.plants.map(async (p) => ({ ...p, photo: p.photo instanceof Blob ? await blobToDataURL(p.photo) : null })));
     const data = { app: 'giesskalender', version: 1, exportedAt: new Date().toISOString(), settings: { ...state.settings, lastNotified: null }, plants };
-    saveBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `giesskalender-${today()}.json`);
+    saveBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `giessela-${today()}.json`);
   }
 
   async function importBackup(file) {

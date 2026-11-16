@@ -1,4 +1,4 @@
-# Gießkalender
+# Gießela
 
 Eine kleine Web-App (PWA), die dich erinnert, wann deine Pflanzen Wasser brauchen. Läuft im Browser auf iPhone und Android, lässt sich auf den Home-Bildschirm legen und funktioniert offline. Alle Daten bleiben auf dem Gerät (IndexedDB).
 

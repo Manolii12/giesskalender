@@ -1,7 +1,7 @@
 /* Gießela – Oberfläche */
 (function () {
   'use strict';
-  const { db, status, toDayString, parseDay, addDays, diffDays, getSettings, saveSettings, effectiveInterval, isWinter } = Core;
+  const { db, status, fertStatus, toDayString, parseDay, addDays, diffDays, getSettings, saveSettings, effectiveInterval, isWinter } = Core;
 
   // ---------- Zustand ----------
   const state = {
@@ -108,6 +108,19 @@
     toast(`Morgen wieder an ${p.name} erinnern`, { label: 'Rückgängig', run: () => savePlant(before) });
   }
 
+  async function fertilize(p, dateStr) {
+    const before = structuredClone(p);
+    const date = dateStr || today();
+    const fertHistory = Array.from(new Set([date, ...(p.fertHistory || [])])).sort().reverse().slice(0, 60);
+    await savePlant({ ...p, fertHistory, fertLast: fertHistory[0], fertSnoozed: null });
+    toast(`${p.name} gedüngt`, { label: 'Rückgängig', run: () => savePlant(before) });
+  }
+  async function snoozeFert(p) {
+    const before = structuredClone(p);
+    await savePlant({ ...p, fertSnoozed: toDayString(addDays(new Date(), 1)) });
+    toast(`Morgen wieder ans Düngen von ${p.name} erinnern`, { label: 'Rückgängig', run: () => savePlant(before) });
+  }
+
   // ---------- Hauptliste ----------
   function render() {
     const s = state.settings;
@@ -131,12 +144,24 @@
     const due = items.filter((x) => x.st.isDue);
     const later = items.filter((x) => !x.st.isDue);
 
+    const fertItems = state.plants
+      .filter((p) => !state.room || (p.room || '').trim() === state.room)
+      .map((p) => ({ p, fs: fertStatus(p, s, now) }))
+      .filter((x) => x.fs && x.fs.isDue)
+      .sort((a, b) => a.fs.daysLeft - b.fs.daysLeft || a.p.name.localeCompare(b.p.name, 'de'));
+
     // Zusammenfassung
     const allDue = state.plants.filter((p) => status(p, s, now).isDue).length;
+    const allFert = state.plants.filter((p) => { const f = fertStatus(p, s, now); return f && f.isDue; }).length;
+    const num = (n) => (n <= 12 ? NUM[n] : String(n));
     const summary = $('#summary');
     if (!state.plants.length) summary.textContent = '';
-    else if (allDue) {
-      summary.innerHTML = `<em>${allDue <= 12 ? NUM[allDue] : allDue} ${allDue === 1 ? 'Pflanze braucht' : 'Pflanzen brauchen'}</em> heute Wasser.`;
+    else if (allDue && allFert) {
+      summary.innerHTML = `<em>${num(allDue)} ${allDue === 1 ? 'Pflanze braucht' : 'Pflanzen brauchen'}</em> heute Wasser, ${allFert <= 12 ? NUM[allFert].toLowerCase() : allFert} ${allFert === 1 ? 'braucht' : 'brauchen'} Dünger.`;
+    } else if (allFert && !allDue) {
+      summary.innerHTML = `<em>${num(allFert)} ${allFert === 1 ? 'Pflanze braucht' : 'Pflanzen brauchen'}</em> heute Dünger.`;
+    } else if (allDue) {
+      summary.innerHTML = `<em>${num(allDue)} ${allDue === 1 ? 'Pflanze braucht' : 'Pflanzen brauchen'}</em> heute Wasser.`;
     } else {
       const next = items[0] || state.plants.map((p) => ({ p, st: status(p, s, now) })).sort((a, b) => a.st.daysLeft - b.st.daysLeft)[0];
       summary.innerHTML = `Heute ist nichts zu tun. Als Nächstes ist <em>${esc(next.p.name)}</em> ${relDay(next.st.daysLeft)} dran.`;
@@ -172,9 +197,30 @@
         </li>`;
     };
 
+    const fertRow = ({ p, fs }) => {
+      const url = photoUrl(p);
+      const elapsed = diffDays(parseDay(p.fertLast), now);
+      const level = Math.max(0, Math.min(1, 1 - elapsed / fs.interval));
+      return `
+        <li class="plant is-due fert" data-id="${esc(p.id)}">
+          <button class="plant-open" data-action="open" aria-label="${esc(p.name)} öffnen">
+            ${url ? `<img class="thumb" src="${url}" alt="">` : `<span class="thumb">${leaf}</span>`}
+            <span class="plant-main">
+              <span class="plant-name">${esc(p.name)}</span>
+              <span class="plant-meta"><b>${relDay(fs.daysLeft)}</b>${p.room ? ` · ${esc(p.room)}` : ''}</span>
+              <span class="level" aria-hidden="true"><i style="width:${Math.round(level * 100)}%"></i></span>
+            </span>
+          </button>
+          <button class="water-btn fert-btn" data-action="fert" aria-label="${esc(p.name)} als gedüngt markieren"><svg><use href="#i-sprout"/></svg></button>
+        </li>`;
+    };
+
     let html = '';
     if (due.length) {
       html += `<h2 class="section-label"><span>Heute gießen</span><span>${due.length}</span></h2><ul class="plants due">${due.map(row).join('')}</ul>`;
+    }
+    if (fertItems.length) {
+      html += `<h2 class="section-label"><span>Heute düngen</span><span>${fertItems.length}</span></h2><ul class="plants due">${fertItems.map(fertRow).join('')}</ul>`;
     }
     if (later.length) {
       html += `<h2 class="section-label"><span>${due.length ? 'Danach' : 'Als Nächstes'}</span></h2><ul class="plants">${later.map(row).join('')}</ul>`;
@@ -195,6 +241,12 @@
       btn.innerHTML = '<svg><use href="#i-check"/></svg>';
       if (navigator.vibrate) navigator.vibrate(12);
       setTimeout(() => water(p), 420);
+    }
+    if (action === 'fert') {
+      btn.classList.add('done');
+      btn.innerHTML = '<svg><use href="#i-check"/></svg>';
+      if (navigator.vibrate) navigator.vibrate(12);
+      setTimeout(() => fertilize(p), 420);
     }
   });
 
@@ -241,6 +293,38 @@
       <button class="btn small ghost" data-detail="adopt" data-days="${base}" style="margin-top:8px">Rhythmus übernehmen</button></p>`;
   }
 
+  function fertBlock(p) {
+    const fs = fertStatus(p, state.settings);
+    if (!fs) {
+      return `<button class="fert-add" data-detail="fert-on"><svg><use href="#i-sprout"/></svg><span><strong>Düngeerinnerung einrichten</strong><small>${p.fertEnabled ? 'Zuletzt eingestellt – wieder aktivieren' : 'Eigener Rhythmus, z. B. alle 4 Wochen'}</small></span></button>`;
+    }
+    const when = fs.paused
+      ? `Winterpause – wieder ab ${fmtShort.format(fs.due)}`
+      : fs.daysLeft < 0 ? `überfällig seit ${fs.daysLeft === -1 ? 'gestern' : `${-fs.daysLeft} Tagen`}`
+      : `${relDay(fs.daysLeft)} · ${fmtShort.format(fs.due)}`;
+    const last = agoDay(diffDays(parseDay(p.fertLast), new Date()));
+    return `
+      <section class="fert-card${fs.isDue ? ' is-due' : ''}">
+        <div class="fert-head">
+          <span class="fert-icon"><svg><use href="#i-sprout"/></svg></span>
+          <div>
+            <strong>Düngen</strong>
+            <small>${when}</small>
+            <small>Zuletzt ${last} · alle ${fs.interval} Tage</small>
+          </div>
+        </div>
+        <div class="fert-actions">
+          <button class="btn small ${fs.isDue ? 'moss' : ''}" data-detail="fert"><svg><use href="#i-sprout"/></svg>Heute gedüngt</button>
+          <button class="btn small" data-detail="fert-other">Anderer Tag</button>
+          ${fs.isDue ? '<button class="btn small" data-detail="fert-snooze">Morgen</button>' : ''}
+        </div>
+        <div class="other-date" id="fert-other-date">
+          <input type="date" id="fert-date-input" max="${today()}" value="${toDayString(addDays(new Date(), -1))}" aria-label="Düngedatum">
+          <button class="btn primary" data-detail="fert-date">Eintragen</button>
+        </div>
+      </section>`;
+  }
+
   function renderDetail() {
     const p = byId(state.detailId);
     const el = $('#detail-sheet');
@@ -279,6 +363,7 @@
           <button class="btn primary" data-detail="water-other">Eintragen</button>
         </div>
       </div>
+      ${fertBlock(p)}
       ${p.notes ? `<p class="notes">${esc(p.notes)}</p>` : ''}
       <section class="history">
         <h3>Gießprotokoll</h3>
@@ -301,11 +386,11 @@
 
   let confirming = false;
   /** Zeigt auf dem Button ein Häkchen, schließt dann das Blatt und trägt das Gießen ein. */
-  async function confirmWatered(btn, commit) {
+  async function confirmWatered(btn, commit, label = 'Gegossen') {
     if (confirming) return;
     confirming = true;
     btn.classList.add('confirmed');
-    btn.innerHTML = '<svg><use href="#i-check"/></svg>Gegossen';
+    btn.innerHTML = `<svg><use href="#i-check"/></svg>${label}`;
     if (navigator.vibrate) navigator.vibrate(15);
     await new Promise((r) => setTimeout(r, 750));
     $('#detail-sheet').close();
@@ -327,6 +412,15 @@
         if (v && v <= today()) await confirmWatered(btn, () => water(p, v));
         break;
       }
+      case 'fert': await confirmWatered(btn, () => fertilize(p), 'Gedüngt'); break;
+      case 'fert-snooze': await snoozeFert(p); break;
+      case 'fert-other': $('#fert-other-date').classList.toggle('open'); break;
+      case 'fert-date': {
+        const v = $('#fert-date-input').value;
+        if (v && v <= today()) await confirmWatered(btn, () => fertilize(p, v), 'Gedüngt');
+        break;
+      }
+      case 'fert-on': $('#detail-sheet').close(); openEdit(p.id, { fert: true }); break;
       case 'adopt': await savePlant({ ...p, interval: Number(btn.dataset.days) }); toast('Intervall angepasst'); break;
       case 'edit': $('#detail-sheet').close(); openEdit(p.id); break;
       case 'ics': downloadICS([p]); break;
@@ -365,7 +459,15 @@
     }
   }
 
-  function openEdit(id) {
+  const fertInput = $('#f-fint');
+  function syncFertPresets() {
+    const v = Number(fertInput.value);
+    document.querySelectorAll('#fpresets button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.fdays) === v)));
+  }
+  $('#f-fert').addEventListener('change', (e) => { $('#fert-fields').hidden = !e.target.checked; });
+  fertInput.addEventListener('input', syncFertPresets);
+
+  function openEdit(id, opts = {}) {
     const p = id ? byId(id) : null;
     state.editId = id;
     state.draftPhoto = undefined;
@@ -378,6 +480,12 @@
     $('#f-last').max = today();
     $('#f-winter').checked = p ? p.winterRest !== false : true;
     $('#f-notes').value = p?.notes || '';
+    $('#f-fert').checked = !!(opts.fert || p?.fertEnabled);
+    $('#fert-fields').hidden = !$('#f-fert').checked;
+    fertInput.value = p?.fertInterval || 28;
+    $('#f-flast').value = p?.fertLast || today();
+    $('#f-flast').max = today();
+    syncFertPresets();
     setPhotoPreview(p?.photo instanceof Blob ? p.photo : null);
     syncPresets();
     openSheet($('#edit-sheet'));
@@ -391,6 +499,13 @@
     }
     const preset = e.target.closest('[data-days]');
     if (preset) { intervalInput.value = preset.dataset.days; syncPresets(); }
+    const fstep = e.target.closest('[data-fstep]');
+    if (fstep) {
+      fertInput.value = Math.min(365, Math.max(1, (Number(fertInput.value) || 28) + Number(fstep.dataset.fstep)));
+      syncFertPresets();
+    }
+    const fpreset = e.target.closest('[data-fdays]');
+    if (fpreset) { fertInput.value = fpreset.dataset.fdays; syncFertPresets(); }
   });
   intervalInput.addEventListener('input', syncPresets);
 
@@ -417,6 +532,18 @@
     if (!history.includes(last)) history.push(last);
     history.sort().reverse();
 
+    const fertOn = $('#f-fert').checked;
+    const fLast = $('#f-flast').value && $('#f-flast').value <= today() ? $('#f-flast').value : today();
+    const fert = fertOn
+      ? {
+          fertEnabled: true,
+          fertInterval: Math.min(365, Math.max(1, Math.round(Number(fertInput.value) || 28))),
+          fertLast: fLast,
+          fertHistory: Array.from(new Set([fLast, ...(existing?.fertHistory || [])])).sort().reverse().slice(0, 60),
+          fertSnoozed: fLast === existing?.fertLast ? existing?.fertSnoozed || null : null,
+        }
+      : { fertEnabled: false };
+
     const plant = {
       id: existing?.id || uid(),
       createdAt: existing?.createdAt || new Date().toISOString(),
@@ -428,6 +555,7 @@
       history: existing ? history : [last],
       winterRest: $('#f-winter').checked,
       notes: $('#f-notes').value.trim(),
+      ...fert,
       photo: state.draftPhoto !== undefined ? state.draftPhoto : (existing?.photo || null),
     };
     // Wenn das Datum bewusst geändert wurde, gilt es als letzter Gießtag.
@@ -476,29 +604,33 @@
     const [hh, mm] = (s.reminderTime || '08:00').split(':');
     const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
     const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Giesskalender//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Gießela'];
-    for (const p of plants) {
-      const st = status(p, s);
-      const start = st.daysLeft < 0 ? new Date() : st.due;
+    const endMin = Number(mm) + 15;
+    const end = `${String(Number(hh) + Math.floor(endMin / 60)).padStart(2, '0')}${String(endMin % 60).padStart(2, '0')}`;
+    const event = (uid, start, interval, summary, p) => {
       const d = toDayString(start).replace(/-/g, '');
-      const endMin = Number(mm) + 15;
-      const end = `${String(Number(hh) + Math.floor(endMin / 60)).padStart(2, '0')}${String(endMin % 60).padStart(2, '0')}`;
       lines.push(
         'BEGIN:VEVENT',
-        `UID:${p.id}@giesskalender`,
+        `UID:${uid}@giesskalender`,
         `DTSTAMP:${stamp}`,
         `DTSTART:${d}T${hh}${mm}00`,
         `DTEND:${d}T${end}00`,
-        `RRULE:FREQ=DAILY;INTERVAL=${st.interval}`,
-        icsFold(`SUMMARY:${icsEscape(`${p.name} gießen`)}`),
-        icsFold(`DESCRIPTION:${icsEscape(`Alle ${st.interval} Tage${p.room ? ` · ${p.room}` : ''}. Wenn sich der Rhythmus ändert, die Datei einfach neu laden.`)}`),
+        `RRULE:FREQ=DAILY;INTERVAL=${interval}`,
+        icsFold(`SUMMARY:${icsEscape(summary)}`),
+        icsFold(`DESCRIPTION:${icsEscape(`Alle ${interval} Tage${p.room ? ` · ${p.room}` : ''}. Wenn sich der Rhythmus ändert, die Datei einfach neu laden.`)}`),
         'TRANSP:TRANSPARENT',
         'BEGIN:VALARM',
         'ACTION:DISPLAY',
-        icsFold(`DESCRIPTION:${icsEscape(`${p.name} gießen`)}`),
+        icsFold(`DESCRIPTION:${icsEscape(summary)}`),
         'TRIGGER:PT0M',
         'END:VALARM',
         'END:VEVENT'
       );
+    };
+    for (const p of plants) {
+      const st = status(p, s);
+      event(p.id, st.daysLeft < 0 ? new Date() : st.due, st.interval, `${p.name} gießen`, p);
+      const fs = fertStatus(p, s);
+      if (fs) event(`${p.id}-duenger`, fs.daysLeft < 0 ? new Date() : fs.due, fs.interval, `${p.name} düngen`, p);
     }
     lines.push('END:VCALENDAR');
     const blob = new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
@@ -623,6 +755,7 @@
     const s = state.settings;
     $('#s-time').value = s.reminderTime;
     $('#s-winter').checked = !!s.winterMode;
+    $('#s-fwinter').checked = s.fertWinterPause !== false;
     $('#s-factor').value = String(s.winterFactor);
     $('#s-factor').closest('.row').style.display = s.winterMode ? '' : 'none';
   }
@@ -636,6 +769,7 @@
   $('#open-settings').addEventListener('click', () => { fillSettings(); notifState(); openSheet($('#settings-sheet')); });
   $('#s-time').addEventListener('change', (e) => e.target.value && updateSetting({ reminderTime: e.target.value, lastNotified: null }));
   $('#s-winter').addEventListener('change', (e) => updateSetting({ winterMode: e.target.checked }));
+  $('#s-fwinter').addEventListener('change', (e) => updateSetting({ fertWinterPause: e.target.checked }));
   $('#s-factor').addEventListener('change', (e) => updateSetting({ winterFactor: Number(e.target.value) }));
   $('#ics-btn').addEventListener('click', () => downloadICS(state.plants));
   $('#export-btn').addEventListener('click', exportBackup);

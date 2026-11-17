@@ -67,6 +67,30 @@
     return { due, daysLeft, interval, level, isDue: daysLeft <= 0 };
   }
 
+  // ---------- Düngen ----------
+  /** Düngerstatus oder null, wenn für die Pflanze keine Düngeerinnerung aktiv ist. */
+  function fertStatus(plant, settings, today) {
+    if (!plant.fertEnabled || !plant.fertLast) return null;
+    today = today || new Date();
+    const interval = Math.max(1, Number(plant.fertInterval) || 28);
+    let due = addDays(parseDay(plant.fertLast), interval);
+    if (plant.fertSnoozed) {
+      const s = parseDay(plant.fertSnoozed);
+      if (s > due) due = s;
+    }
+    let paused = false;
+    if (settings && settings.fertWinterPause !== false) {
+      // Im Winter wird nicht gedüngt: Fälligkeit verschiebt sich auf den 1. März.
+      const ref = due > today ? due : today;
+      if (isWinter(ref)) {
+        const spring = new Date(ref.getMonth() >= 10 ? ref.getFullYear() + 1 : ref.getFullYear(), 2, 1);
+        if (spring > due) { due = spring; paused = true; }
+      }
+    }
+    const daysLeft = diffDays(today, due);
+    return { due, daysLeft, interval, isDue: daysLeft <= 0, paused };
+  }
+
   // ---------- IndexedDB ----------
   const DB_NAME = 'giess';
   const DB_VERSION = 1;
@@ -112,6 +136,7 @@
     reminderTime: '08:00',
     winterMode: true,
     winterFactor: 1.5,
+    fertWinterPause: true,
     lastNotified: null,
   };
 
@@ -140,7 +165,9 @@
     const settings = await getSettings();
     const plants = await db.all('plants');
     const now = new Date();
-    const due = plants.filter((p) => status(p, settings, now).isDue);
+    const water = plants.filter((p) => status(p, settings, now).isDue);
+    const fert = plants.filter((p) => { const f = fertStatus(p, settings, now); return f && f.isDue; });
+    const due = Array.from(new Set([...water, ...fert]));
 
     const nav = root.navigator;
     try {
@@ -160,11 +187,23 @@
     if (!opts.force && (settings.lastNotified === todayStr || now < reminderMoment)) return due.length;
     if (!root.Notification || root.Notification.permission !== 'granted') return due.length;
 
-    const names = due.map((p) => p.name);
+    const wn = water.map((p) => p.name);
+    const fn = fert.map((p) => p.name);
+    let title, body;
+    if (wn.length && fn.length) {
+      title = 'Heute ist Pflegetag';
+      body = `Gießen: ${namesList(wn)}. Düngen: ${namesList(fn)}.`;
+    } else if (fn.length) {
+      title = fn.length === 1 ? `${fn[0]} braucht Dünger` : `${fn.length} Pflanzen brauchen Dünger`;
+      body = fn.length === 1 ? 'Heute ist Düngetag.' : `Heute dran: ${namesList(fn)}.`;
+    } else {
+      title = wn.length === 1 ? `${wn[0]} hat Durst` : `${wn.length} Pflanzen haben Durst`;
+      body = wn.length === 1 ? 'Heute ist Gießtag.' : `Heute dran: ${namesList(wn)}.`;
+    }
     await registration.showNotification(
-      due.length === 1 ? `${names[0]} hat Durst` : `${due.length} Pflanzen haben Durst`,
+      title,
       {
-        body: due.length === 1 ? 'Heute ist Gießtag.' : `Heute dran: ${namesList(names)}.`,
+        body,
         tag: 'giess-due',
         renotify: true,
         icon: 'icons/icon-192.png',
@@ -179,7 +218,7 @@
 
   root.Core = {
     DAY, startOfDay, parseDay, toDayString, addDays, diffDays,
-    isWinter, effectiveInterval, nextDue, status,
+    isWinter, effectiveInterval, nextDue, status, fertStatus,
     db, getSettings, saveSettings, DEFAULT_SETTINGS,
     namesList, checkAndNotify,
   };

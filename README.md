@@ -7,7 +7,8 @@ Eine kleine Web-App (PWA), die dich erinnert, wann deine Pflanzen Wasser brauche
 - „Heute gießen“-Liste, Wasserstand-Balken, Gießen mit einem Tipp (inkl. Rückgängig)
 - Anderes Gießdatum nachtragen, „Morgen erinnern“
 - Gießprotokoll mit Auswertung („du gießt im Schnitt alle X Tage“) und Vorschlag zum Anpassen
-- Winterruhe: Intervalle von November bis Februar automatisch verlängern
+- Winterruhe: Gießintervalle von November bis Februar automatisch verlängern
+- Düngeerinnerung pro Pflanze mit eigenem Rhythmus (z. B. alle 28 Tage), eigene Liste „Heute düngen“, optional Winterpause (Termine rutschen auf den 1. März)
 - Erinnerungen: Benachrichtigungen + Zahl am App-Symbol, regelmäßige Hintergrundprüfung (Android/Chrome), Kalenderexport (.ics) mit Alarm
 - Sicherung als JSON exportieren/importieren
 

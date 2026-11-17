@@ -33,7 +33,8 @@
       <symbol id="i-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4Z"/><circle cx="12" cy="13" r="3.4"/></g></symbol>
       <symbol id="i-calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></g></symbol>
       <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></g></symbol>
-      <symbol id="i-leaf" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 58V30"/><path d="M32 40c-9 0-16-6-17-17 10 0 17 6 17 17Z"/><path d="M32 32c0-11 6-19 18-21 0 12-7 20-18 21Z"/><path d="M32 40 22 29M32 32l11-13"/></g></symbol>
+      <symbol id="i-sprout" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 14c-3.6 0-6-2.2-6.2-6 3.8 0 6.2 2.2 6.2 6Z"/><path d="M12 12c0-4 2.2-6.6 6.4-7.2 0 4-2.4 6.6-6.4 7.2Z"/></g></symbol>
+      <symbol id="i-leaf"viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 58V30"/><path d="M32 40c-9 0-16-6-17-17 10 0 17 6 17 17Z"/><path d="M32 32c0-11 6-19 18-21 0 12-7 20-18 21Z"/><path d="M32 40 22 29M32 32l11-13"/></g></symbol>
       <symbol id="i-share" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 7.5 12 4l4 3.5"/><path d="M7 11H5.5v9h13v-9H17"/></g></symbol>
     </defs>
   </svg>
@@ -114,6 +115,35 @@
         <i aria-hidden="true"></i>
       </label>
 
+      <label class="toggle">
+        <span>
+          <strong>Düngen erinnern</strong>
+          <small>Eigener Rhythmus, unabhängig vom Gießen</small>
+        </span>
+        <input type="checkbox" id="f-fert" name="fertEnabled">
+        <i aria-hidden="true"></i>
+      </label>
+      <div id="fert-fields" hidden>
+        <div class="field">
+          <span class="label">Düngeintervall</span>
+          <div class="stepper">
+            <button type="button" class="step" data-fstep="-1" aria-label="Einen Tag weniger"><svg><use href="#i-minus"/></svg></button>
+            <div class="step-value"><input id="f-fint" name="fertInterval" type="number" inputmode="numeric" min="1" max="365" value="28" aria-label="Tage"><span>Tage</span></div>
+            <button type="button" class="step" data-fstep="1" aria-label="Einen Tag mehr"><svg><use href="#i-plus"/></svg></button>
+          </div>
+          <div class="presets" id="fpresets">
+            <button type="button" data-fdays="7">Wöchentlich · 7</button>
+            <button type="button" data-fdays="14">14</button>
+            <button type="button" data-fdays="28">Monatlich · 28</button>
+            <button type="button" data-fdays="60">60</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-flast">Zuletzt gedüngt</label>
+          <input id="f-flast" name="fertLast" type="date">
+        </div>
+      </div>
+
       <div class="field">
         <label for="f-notes">Notizen <span class="opt">optional</span></label>
         <textarea id="f-notes" name="notes" rows="3" placeholder="Standort, Dünger, Besonderheiten …" maxlength="500"></textarea>
@@ -157,6 +187,11 @@
       <label class="toggle">
         <span><strong>Automatisch anpassen</strong><small>Intervalle von November bis Februar verlängern</small></span>
         <input type="checkbox" id="s-winter">
+        <i aria-hidden="true"></i>
+      </label>
+      <label class="toggle">
+        <span><strong>Nicht düngen im Winter</strong><small>Düngetermine von November bis Februar werden auf den 1. März verschoben</small></span>
+        <input type="checkbox" id="s-fwinter">
         <i aria-hidden="true"></i>
       </label>
       <label class="row">

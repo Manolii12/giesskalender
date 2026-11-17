@@ -195,6 +195,49 @@ button:focus:not(:focus-visible) { outline: none; }
 .water-btn:active { transform: scale(.92); }
 .water-btn.done { background: var(--moss); border-color: var(--moss); color: var(--bg); }
 
+/* ---------- Dünger ---------- */
+.plant.fert.is-due .plant-meta b { color: var(--moss); }
+.plant.fert .level > i { background: var(--moss); }
+.plant.fert.is-due .water-btn.fert-btn { background: var(--moss); border-color: var(--moss); color: var(--bg); }
+.plant.fert .water-btn.done { background: var(--moss); }
+.btn.moss { background: var(--moss); border-color: var(--moss); color: var(--bg); }
+
+.fert-card {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.fert-card.is-due { border-color: var(--moss); }
+.fert-head { display: flex; gap: 12px; align-items: flex-start; }
+.fert-icon {
+  display: grid; place-items: center;
+  width: 38px; height: 38px; flex: none;
+  border-radius: 50%;
+  background: var(--moss-soft);
+  color: var(--moss);
+}
+.fert-head small { display: block; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.fert-head strong { display: block; }
+.fert-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.fert-actions .btn { padding: 0 11px; gap: 6px; flex: 1 1 auto; }
+.fert-card .other-date { margin-top: 8px; }
+.fert-add {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  background: transparent;
+  text-align: left;
+  color: var(--moss);
+}
+.fert-add small { display: block; color: var(--muted); font-size: 13px; font-weight: 400; }
+.fert-add strong { color: var(--ink); }
+#fert-fields[hidden] { display: none; }
+
 /* ---------- Leerer Zustand ---------- */
 .empty {
   text-align: center;

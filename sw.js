@@ -1,7 +1,7 @@
 /* Service Worker: Offline-Cache, Hintergrund-Prüfung, Klick auf Benachrichtigung */
 importScripts('core.js');
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHELL = `giess-shell-${VERSION}`;
 const RUNTIME = `giess-runtime-${VERSION}`;
 const SHELL_FILES = [
